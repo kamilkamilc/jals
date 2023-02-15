@@ -1,7 +1,7 @@
 .PHONY: build compile clean run up down
 
 
-# go coomands
+# go commands
 compile:
 	cd jals && go mod download && go build
 
