@@ -4,14 +4,21 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/dark.css">
     <title>Just Another Link Shortener</title>
+    <style>
+        input[type="text"] {
+            width: 100%;
+        }
+    </style>
 </head>
 <body>
-    <h1>Just Another Link Shortener (JALS)</h1>
-    <form action="/link" method="post">
-        <input type="text" name="link">
-        <input type="checkbox" name="emoji"><label for="emoji">Emoji?</label>
-        <button type="submit">Make it short and nice!</button>
-    </form>
+    <main>
+        <h1>Just Another Link Shortener (JALS)</h1>
+        <form action="/link" method="post">
+            <input type="text" name="link" placeholder="Paste long and ugly link here" required>
+            <button type="submit" class="button-3">Make it short and nice!</button>
+        </form>
+    </main>
 </body>
 </html>
