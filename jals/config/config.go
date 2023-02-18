@@ -12,7 +12,8 @@ type Config struct {
 	Emoji           bool   `env:"EMOJI" envDefault:"false"`
 	MetricsUser     string `env:"METRICS_USER"`
 	MetricsPassword string `env:"METRICS_PASSWORD"`
-	RedisURI        string `env:"REDIS_URI" envDefault:""`
+	RedisAddress    string `env:"REDIS_ADDRESS" envDefault:"localhost:6379"`
+	RedisDB         int    `env:"REDIS_DB" envDefault:"0"`
 }
 
 func AppConfig() *Config {

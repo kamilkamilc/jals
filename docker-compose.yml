@@ -15,6 +15,8 @@ services:
     build: ./jals
     environment:
       - EMOJI=true
+      - REDIS_ADDRESS=redis:6379
+      - REDIS_DB=0
     ports:
       - "8080:8080"
 

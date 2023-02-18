@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
 	"time"
@@ -12,13 +13,16 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/kamilkamilc/jals/config"
+	"github.com/kamilkamilc/jals/model"
+	"github.com/kamilkamilc/jals/store"
 )
 
 //go:embed static/index.html
 var index []byte
 
-// dummy in-memory storage
-var linkStorage map[string]string
+type Handler struct {
+	Storage store.RedisStorage
+}
 
 // basic generator without collision check, to be replaced
 func basicGenerator(length int, useEmoji bool) string {
@@ -32,7 +36,7 @@ func basicGenerator(length int, useEmoji bool) string {
 	return string(generated)
 }
 
-func ApiPostLink(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ApiPostLink(w http.ResponseWriter, r *http.Request) {
 	// temporary, no checking for errors
 	decoder := json.NewDecoder(r.Body)
 
@@ -42,45 +46,62 @@ func ApiPostLink(w http.ResponseWriter, r *http.Request) {
 	var data postData
 	decoder.Decode(&data)
 	shortLink := basicGenerator(8, false)
-	linkStorage[shortLink] = data.OriginalLink
-	fmt.Printf("%+v\n%+v\n", data, shortLink)
+	h.Storage.SaveLink(&model.Link{
+		ShortLink: shortLink,
+		LinkInfo: model.LinkInfo{
+			OriginalLink: data.OriginalLink,
+			Clicks:       0,
+		},
+	})
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte("{\"shortLink\":\"" + shortLink + "\"}"))
+	io.WriteString(w, fmt.Sprintf("{\"shortLink\":\"%v\"}", shortLink))
 }
 
-func ApiGetShortLink(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ApiGetShortLink(w http.ResponseWriter, r *http.Request) {
 	shortLink := chi.URLParam(r, "shortLink")
 	w.Header().Set("Content-Type", "application/json")
-	if originalLink, ok := linkStorage[shortLink]; ok {
-		w.Write([]byte("{\"originalLink\":\"" + originalLink + "\"}"))
-	} else {
+	linkInfo, err := h.Storage.RetrieveLinkInfo(shortLink)
+	if err != nil || linkInfo.OriginalLink == "" {
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("{}"))
+	} else {
+		io.WriteString(w, fmt.Sprintf("{\"originalLink\":\"%v\",\"clicks\":\"%v\"}",
+			linkInfo.OriginalLink, linkInfo.Clicks,
+		))
 	}
 }
 
 func GetIndex(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write(index)
 }
 
-func GetShortLink(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetShortLink(w http.ResponseWriter, r *http.Request) {
 	shortLink := chi.URLParam(r, "shortLink")
-	if originalLink, ok := linkStorage[shortLink]; ok {
-		http.Redirect(w, r, originalLink, http.StatusFound)
-	} else {
+	originalLink, err := h.Storage.RetrieveOriginalLink(shortLink)
+	if err != nil || originalLink == "" {
 		w.WriteHeader(http.StatusNotFound)
 		w.Write(index)
+	} else {
+		h.Storage.IncrementClicks(shortLink)
+		http.Redirect(w, r, originalLink, http.StatusFound)
 	}
 }
 
-func PostLink(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) PostLink(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	useEmoji := r.Form["emoji"][0] == "on"
+	// temporary, no checking for errors
+	//useEmoji := r.Form["emoji"][0] == "on"
 	originalLink := r.Form["link"][0]
-	shortLink := basicGenerator(8, useEmoji)
-	fmt.Printf("%+v\n%+v\n%+v\n", useEmoji, originalLink, shortLink)
-	linkStorage[shortLink] = originalLink
-	w.Write(index)
+	shortLink := basicGenerator(8, false)
+	h.Storage.SaveLink(&model.Link{
+		ShortLink: shortLink,
+		LinkInfo: model.LinkInfo{
+			OriginalLink: originalLink,
+			Clicks:       0,
+		},
+	})
+	w.Write([]byte(shortLink))
 }
 
 func GetHealthz(w http.ResponseWriter, r *http.Request) {
@@ -90,11 +111,12 @@ func GetHealthz(w http.ResponseWriter, r *http.Request) {
 func main() {
 	appConfig := config.AppConfig()
 
-	linkStorage = make(map[string]string)
+	redisStorage := store.InitializeRedisStorage(appConfig)
+	handler := &Handler{Storage: *redisStorage}
 
 	apiRouter := chi.NewRouter()
-	apiRouter.Post("/link", ApiPostLink)
-	apiRouter.Get("/link/{shortLink}", ApiGetShortLink)
+	apiRouter.Post("/link", handler.ApiPostLink)
+	apiRouter.Get("/link/{shortLink}", handler.ApiGetShortLink)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -104,8 +126,8 @@ func main() {
 	r.Mount("/api", apiRouter)
 
 	r.Get("/", GetIndex)
-	r.Get("/{shortLink}", GetShortLink)
-	r.Post("/link", PostLink)
+	r.Get("/{shortLink}", handler.GetShortLink)
+	r.Post("/link", handler.PostLink)
 
 	r.Get("/healthz", GetHealthz)
 
