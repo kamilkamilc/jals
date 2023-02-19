@@ -42,9 +42,14 @@ func (ms *MapStorage) RetrieveOriginalLink(shortLink string) (string, error) {
 func (ms *MapStorage) RetrieveLinkInfo(shortLink string) (*model.LinkInfo, error) {
 	ms.lock.RLock()
 	defer ms.lock.RUnlock()
-	if linkInfo, ok := ms.storage[shortLink]; !ok {
+	if li, ok := ms.storage[shortLink]; !ok {
 		return nil, errors.New("shortLink not found")
 	} else {
+		// we don't want to return pointer to map element itself
+		linkInfo := &model.LinkInfo{
+			OriginalLink: li.OriginalLink,
+			Clicks:       li.Clicks,
+		}
 		return linkInfo, nil
 	}
 }
