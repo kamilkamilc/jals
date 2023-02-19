@@ -21,7 +21,7 @@ import (
 var index []byte
 
 type Handler struct {
-	Storage store.RedisStorage
+	Storage store.Storage
 }
 
 // basic generator without collision check, to be replaced
@@ -112,7 +112,7 @@ func main() {
 	appConfig := config.AppConfig()
 
 	redisStorage := store.InitializeRedisStorage(appConfig)
-	handler := &Handler{Storage: *redisStorage}
+	handler := &Handler{Storage: redisStorage}
 
 	apiRouter := chi.NewRouter()
 	apiRouter.Post("/link", handler.ApiPostLink)

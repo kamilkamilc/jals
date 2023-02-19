@@ -44,7 +44,7 @@ func (rs *RedisStorage) RetrieveLinkInfo(shortLink string) (*model.LinkInfo, err
 	return linkInfo, err
 }
 
-func (rs RedisStorage) IncrementClicks(shortLink string) error {
+func (rs *RedisStorage) IncrementClicks(shortLink string) error {
 	key := "links:" + shortLink
 	err := rs.rdb.HIncrBy(rs.ctx, key, "clicks", 1).Err()
 	return err
