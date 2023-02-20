@@ -10,9 +10,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httplog"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/kamilkamilc/jals/config"
 	"github.com/kamilkamilc/jals/generator"
+	mid "github.com/kamilkamilc/jals/middleware"
 	"github.com/kamilkamilc/jals/model"
 	"github.com/kamilkamilc/jals/store"
 )
@@ -109,6 +111,7 @@ func main() {
 	apiRouter.Get("/link/{shortLink}", handler.ApiGetShortLink)
 
 	r := chi.NewRouter()
+	r.Use(mid.NewPrometheusMiddleware("jals"))
 	r.Use(httplog.RequestLogger(logger))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.StripSlashes)
@@ -120,6 +123,14 @@ func main() {
 	r.Post("/link", handler.PostLink)
 
 	r.Get("/healthz", GetHealthz)
+	r.Group(func(p chi.Router) {
+		if appConfig.MetricsUser != "" && appConfig.MetricsPassword != "" {
+			creds := make(map[string]string)
+			creds[appConfig.MetricsUser] = appConfig.MetricsPassword
+			p.Use(middleware.BasicAuth("Restricted", creds))
+		}
+		p.Method("GET", "/metrics", promhttp.Handler())
+	})
 
 	logger.Info().Str("address", appConfig.Address).Msg("server started")
 	err := http.ListenAndServe(appConfig.Address, r)

@@ -9,8 +9,8 @@ import (
 type Config struct {
 	Address         string `env:"ADDRESS" envDefault:":8080"`
 	Emoji           bool   `env:"EMOJI" envDefault:"false"`
-	MetricsUser     string `env:"METRICS_USER"`
-	MetricsPassword string `env:"METRICS_PASSWORD"`
+	MetricsUser     string `env:"METRICS_USER" envDefault:""`
+	MetricsPassword string `env:"METRICS_PASSWORD" envDefault:""`
 	RedisAddress    string `env:"REDIS_ADDRESS" envDefault:"localhost:6379"`
 	RedisDB         int    `env:"REDIS_DB" envDefault:"0"`
 }
