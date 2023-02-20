@@ -5,15 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httplog"
 
 	"github.com/kamilkamilc/jals/config"
+	"github.com/kamilkamilc/jals/generator"
 	"github.com/kamilkamilc/jals/model"
 	"github.com/kamilkamilc/jals/store"
 )
@@ -25,18 +24,6 @@ type Handler struct {
 	Storage store.Storage
 }
 
-// basic generator without collision check, to be replaced
-func basicGenerator(length int, useEmoji bool) string {
-	rand.Seed(time.Now().UnixNano())
-
-	const characters = "1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	generated := make([]byte, length)
-	for i := range generated {
-		generated[i] = characters[rand.Intn(len(characters))]
-	}
-	return string(generated)
-}
-
 func (h *Handler) ApiPostLink(w http.ResponseWriter, r *http.Request) {
 	// temporary, no checking for errors
 	decoder := json.NewDecoder(r.Body)
@@ -46,7 +33,7 @@ func (h *Handler) ApiPostLink(w http.ResponseWriter, r *http.Request) {
 	}
 	var data postData
 	decoder.Decode(&data)
-	shortLink := basicGenerator(8, false)
+	shortLink := generator.BasicGenerator(8, false)
 	h.Storage.SaveLink(&model.Link{
 		ShortLink: shortLink,
 		LinkInfo: model.LinkInfo{
@@ -92,9 +79,8 @@ func (h *Handler) GetShortLink(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) PostLink(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	// temporary, no checking for errors
-	//useEmoji := r.Form["emoji"][0] == "on"
 	originalLink := r.Form["link"][0]
-	shortLink := basicGenerator(8, false)
+	shortLink := generator.BasicGenerator(8, false)
 	h.Storage.SaveLink(&model.Link{
 		ShortLink: shortLink,
 		LinkInfo: model.LinkInfo{
@@ -136,5 +122,8 @@ func main() {
 	r.Get("/healthz", GetHealthz)
 
 	logger.Info().Str("address", appConfig.Address).Msg("server started")
-	http.ListenAndServe(appConfig.Address, r)
+	err := http.ListenAndServe(appConfig.Address, r)
+	if err != nil {
+		logger.Fatal().Msg(err.Error())
+	}
 }
