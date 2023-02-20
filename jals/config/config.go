@@ -8,7 +8,6 @@ import (
 
 type Config struct {
 	Address         string `env:"ADDRESS" envDefault:":8080"`
-	Debug           bool   `env:"DEBUG" envDefault:"false"`
 	Emoji           bool   `env:"EMOJI" envDefault:"false"`
 	MetricsUser     string `env:"METRICS_USER"`
 	MetricsPassword string `env:"METRICS_PASSWORD"`

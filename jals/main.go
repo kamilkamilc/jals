@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/httplog"
 
 	"github.com/kamilkamilc/jals/config"
 	"github.com/kamilkamilc/jals/model"
@@ -110,6 +111,9 @@ func GetHealthz(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	appConfig := config.AppConfig()
+	logger := httplog.NewLogger("jals", httplog.Options{
+		JSON: true,
+	})
 
 	redisStorage := store.InitializeRedisStorage(appConfig)
 	handler := &Handler{Storage: redisStorage}
@@ -119,7 +123,7 @@ func main() {
 	apiRouter.Get("/link/{shortLink}", handler.ApiGetShortLink)
 
 	r := chi.NewRouter()
-	r.Use(middleware.Logger)
+	r.Use(httplog.RequestLogger(logger))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.StripSlashes)
 
@@ -131,5 +135,6 @@ func main() {
 
 	r.Get("/healthz", GetHealthz)
 
+	logger.Info().Str("address", appConfig.Address).Msg("server started")
 	http.ListenAndServe(appConfig.Address, r)
 }
