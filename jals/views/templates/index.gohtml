@@ -19,6 +19,9 @@
             <input type="text" name="link" placeholder="Paste long and ugly link here" required>
             <button type="submit" class="button-3">Make it short and nice!</button>
         </form>
+        {{ range .Flashes }}
+            <p><strong>{{ . }}</strong></p>
+        {{ end }}
     </main>
 </body>
 </html>

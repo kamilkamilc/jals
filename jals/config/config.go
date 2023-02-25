@@ -13,6 +13,7 @@ type Config struct {
 	MetricsPassword string `env:"METRICS_PASSWORD" envDefault:""`
 	RedisAddress    string `env:"REDIS_ADDRESS" envDefault:"localhost:6379"`
 	RedisDB         int    `env:"REDIS_DB" envDefault:"0"`
+	SessionKey      string `env:"SESSION_KEY" envDefault:"session-key"`
 }
 
 func AppConfig() *Config {

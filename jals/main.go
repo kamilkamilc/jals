@@ -6,50 +6,46 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httplog"
+	"github.com/gorilla/sessions"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/kamilkamilc/jals/config"
 	"github.com/kamilkamilc/jals/handlers"
 	mid "github.com/kamilkamilc/jals/middleware"
-	"github.com/kamilkamilc/jals/static"
 	"github.com/kamilkamilc/jals/store"
 )
-
-func GetIndex(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write(static.Index)
-}
-
-func GetHealthz(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(""))
-}
 
 func main() {
 	appConfig := config.AppConfig()
 	logger := httplog.NewLogger("jals", httplog.Options{
 		JSON: true,
 	})
-
+	sessionStorage := sessions.NewCookieStore([]byte(appConfig.SessionKey))
 	redisStorage := store.InitializeRedisStorage(appConfig)
-	handler := &handlers.Handler{Storage: redisStorage}
+	handler := &handlers.Handler{
+		Storage:        redisStorage,
+		SessionStorage: sessionStorage,
+	}
 
 	apiRouter := chi.NewRouter()
 	apiRouter.Post("/link", handler.ApiPostLink)
 	apiRouter.Get("/link/{shortLink}", handler.ApiGetShortLink)
 
 	r := chi.NewRouter()
-	r.Use(mid.NewPrometheusMiddleware("jals"))
 	r.Use(httplog.RequestLogger(logger))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.StripSlashes)
+	r.Use(mid.NewPrometheusMiddleware("jals"))
 
 	r.Mount("/api", apiRouter)
 
-	r.Get("/", GetIndex)
+	r.Get("/", handler.GetIndex)
 	r.Get("/{shortLink}", handler.GetShortLink)
 	r.Post("/link", handler.PostLink)
 
-	r.Get("/healthz", GetHealthz)
+	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(""))
+	})
 	r.Group(func(p chi.Router) {
 		if appConfig.MetricsUser != "" && appConfig.MetricsPassword != "" {
 			creds := make(map[string]string)

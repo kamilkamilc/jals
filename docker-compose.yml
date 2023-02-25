@@ -17,6 +17,7 @@ services:
       - EMOJI=true
       - REDIS_ADDRESS=redis:6379
       - REDIS_DB=0
+      - SESSION_KEY=f6011235949d52ebd5dae0c106b47a2082bd118023bf6d7b7e182bd8fd861a02
     ports:
       - "8080:8080"
 

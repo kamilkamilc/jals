@@ -5,16 +5,19 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"text/template"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/gorilla/sessions"
 	"github.com/kamilkamilc/jals/generator"
 	"github.com/kamilkamilc/jals/model"
-	"github.com/kamilkamilc/jals/static"
 	"github.com/kamilkamilc/jals/store"
+	"github.com/kamilkamilc/jals/views"
 )
 
 type Handler struct {
-	Storage store.Storage
+	Storage        store.Storage
+	SessionStorage sessions.Store
 }
 
 func (h *Handler) ApiPostLink(w http.ResponseWriter, r *http.Request) {
@@ -52,12 +55,32 @@ func (h *Handler) ApiGetShortLink(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) GetIndex(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	session, _ := h.SessionStorage.Get(r, "fmsgs")
+	t := template.Must(template.New("index").Parse(string(views.IndexTemplate)))
+	type ViewData struct {
+		Flashes []interface{}
+	}
+	vd := ViewData{Flashes: session.Flashes("messages")}
+	session.Save(r, w)
+	t.Execute(w, vd)
+}
+
 func (h *Handler) GetShortLink(w http.ResponseWriter, r *http.Request) {
 	shortLink := chi.URLParam(r, "shortLink")
 	originalLink, err := h.Storage.RetrieveOriginalLink(shortLink)
 	if err != nil || originalLink == "" {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write(static.Index)
+		session, _ := h.SessionStorage.Get(r, "fmsgs")
+		session.AddFlash("Link not found", "warnings")
+		t := template.Must(template.New("index").Parse(string(views.IndexTemplate)))
+		type ViewData struct {
+			Flashes []interface{}
+		}
+		vd := ViewData{Flashes: session.Flashes("warnings")}
+		session.Save(r, w)
+		t.Execute(w, vd)
 	} else {
 		h.Storage.IncrementClicks(shortLink)
 		http.Redirect(w, r, originalLink, http.StatusFound)
@@ -76,5 +99,8 @@ func (h *Handler) PostLink(w http.ResponseWriter, r *http.Request) {
 			Clicks:       0,
 		},
 	})
-	w.Write([]byte(shortLink))
+	session, _ := h.SessionStorage.Get(r, "fmsgs")
+	session.AddFlash("Short link: "+shortLink, "messages")
+	session.Save(r, w)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
