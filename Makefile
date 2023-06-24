@@ -1,4 +1,4 @@
-.PHONY: build compile clean run up down
+.PHONY: build compile clean run up down logs
 
 
 # go commands
